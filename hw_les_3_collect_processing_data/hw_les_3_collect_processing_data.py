@@ -1,4 +1,5 @@
 """
+
 Вариант 2
 Необходимо собрать информацию по продуктам питания с сайта: Список протестированных продуктов на сайте Росконтроль.рф
 Приложение должно анализировать несколько страниц сайта (вводим через input или аргументы).
@@ -9,11 +10,12 @@
 Общую оценку
 Сайт, откуда получена информация.
 Общий результат можно вывести с помощью dataFrame через Pandas. Сохраните в json либо csv.
+
 """
 import requests
 from pprint import pprint
 from bs4 import BeautifulSoup
-
+from pymongo import MongoClient
 
 
 def sbor_info(dom_structure, max_page, link_cat):
@@ -77,10 +79,9 @@ def sbor_info(dom_structure, max_page, link_cat):
             product_dict['quality'] = quality
             product_dict['link'] = link
 
-            category_poducts_list.append(product_dict)
-
         params['page'] = int(params['page']) + 1
-    return (category_poducts_list)
+
+    return (product_dict)
 
 
 # https://roscontrol.com/category/produkti/yaytsa/?page=2
@@ -97,8 +98,10 @@ dom_structure = BeautifulSoup(response.text, 'html.parser')
 category_poducts = dom_structure.find_all('div', {
     'class': 'grid-padding grid-column-3 grid-column-large-6 grid-flex-mobile grid-column-middle-6 grid-column-small-12 grid-left'})
 
-category_poducts_list = []
+client = MongoClient('127.0.0.1', 27017)
 
+db = client['Roscontrol3011']
+products = db.products
 
 for category in category_poducts:
     category_info = {}
@@ -112,18 +115,29 @@ for category in category_poducts:
     type_products = dom_structure.find_all('div', {
         'class': 'grid-padding grid-column-3 grid-column-large-6 grid-flex-mobile grid-column-middle-6 grid-column-small-12 grid-left'})
 
-    print(len(type_products))
-
     if len(type_products) == 0:
         max_page = 1
-        sbor_info(dom_structure, max_page, link_cat)
+        new_product = sbor_info(dom_structure, max_page, link_cat)
+        db.products.update_one(new_product, {'$set': new_product}, upsert=True)
     elif len(type_products) > 0:
         for type_product in type_products:
             link_type_prod = url + type_product.find('a')['href']
             response_3 = requests.get(link_type_prod, params=params, headers=headers)
             dom_structure = BeautifulSoup(response_3.text, 'html.parser')
             max_page = 1
-            sbor_info(dom_structure, max_page, link_type_prod)
-        pprint(category_poducts_list)
+            new_product = sbor_info(dom_structure, max_page, link_cat)
+            db.products.update_one(new_product, {'$set': new_product}, upsert=True)
 
-pprint(category_poducts_list)
+rating_quality = input('Enter rating: ')
+while type(rating_quality) != float:
+    try:
+        rating_quality = float(rating_quality)
+    except ValueError:
+        rating_quality = input('Try again: ')
+
+for prod in db.products.find(
+        {'$or': [{'overal_assessment': {'$gte': rating_quality}}, {'quality': {'$gte': rating_quality}}]},
+        {'name': True, 'overal_assessment': True, 'safety': True, '_id': False, 'nutritional_value': True,
+         'naturalness': True, 'quality': True, 'link': False}):
+    pprint(prod)
+    print('------------------------------------')
