@@ -15,6 +15,7 @@ from pprint import pprint
 from bs4 import BeautifulSoup
 
 
+
 def sbor_info(dom_structure, max_page, link_cat):
     try:
         pages = dom_structure.find('div', {'class': 'page-pagination'}).findChildren()
@@ -97,6 +98,7 @@ category_poducts = dom_structure.find_all('div', {
     'class': 'grid-padding grid-column-3 grid-column-large-6 grid-flex-mobile grid-column-middle-6 grid-column-small-12 grid-left'})
 
 category_poducts_list = []
+
 
 for category in category_poducts:
     category_info = {}
