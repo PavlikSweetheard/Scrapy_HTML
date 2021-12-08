@@ -1,6 +1,7 @@
 import requests
 from lxml import html
 from pymongo import MongoClient
+from pymongo.errors import DuplicateKeyError
 
 client = MongoClient('127.0.0.1', 27017)
 bd = client['News1207']
@@ -32,4 +33,7 @@ for link in news_blocks_links:
     news_dict['date'] = date
     news_dict['origin'] = origin
 
-    news.insert_one(news_dict)
+    try:
+        news.insert_one(news_dict)
+    except DuplicateKeyError:
+        pass
